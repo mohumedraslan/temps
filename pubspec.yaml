@@ -1,5 +1,5 @@
-name: dice_game
-description: A simple Flutter dice game.
+name: mini_product_catalog
+description: A three-page Flutter product catalog for state lifecycle and navigation practice.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -10,6 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  go_router: ^14.2.7
 
 dev_dependencies:
   flutter_test:
@@ -18,6 +19,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/happy.png
-    - assets/sad.png
