@@ -1,169 +1,254 @@
-import 'dart:math';
 
 import 'package:flutter/material.dart';
-
-import 'dice.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mini_product_catalog/product_widgets.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const ProductCatalogApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF54C7B5),
-      brightness: Brightness.dark,
-    );
-
-    return MaterialApp(
-      title: 'Dice Game',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: colorScheme,
-        scaffoldBackgroundColor: const Color(0xFF111923),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF111923),
-          foregroundColor: Colors.white,
-          centerTitle: true,
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(52),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(52),
-            side: const BorderSide(color: Color(0xFF75818F)),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        ),
-        useMaterial3: true,
+final GoRouter _router = GoRouter(
+  routes: [
+    GoRoute(
+      path: '/',
+      builder: (context, state) => const LoginPage(),
+    ),
+    GoRoute(
+      path: '/products',
+      name: 'products',
+      builder: (context, state) {
+        final username = state.uri.queryParameters['user'] ?? 'Guest';
+        return ProductsPage(username: username);
+      },
+    ),
+    GoRoute(
+      path: '/details/:name/:price',
+      name: 'details',
+      builder: (context, state) => DetailsPage(
+        name: state.pathParameters['name'] ?? '',
+        price: state.pathParameters['price'] ?? '',
       ),
-      home: const DiceScreen(),
-    );
-  }
-}
+    ),
+  ],
+);
 
-class DiceScreen extends StatefulWidget {
-  const DiceScreen({super.key});
+class ProductCatalogApp extends StatelessWidget {
+  const ProductCatalogApp({super.key});
 
   @override
-  State<DiceScreen> createState() => _DiceScreenState();
+  Widget build(BuildContext context) {
+    return MaterialApp.router(routerConfig: _router);
+  }
 }
 
-class _DiceScreenState extends State<DiceScreen> {
-  final Random _random = Random();
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
-  int _firstDie = 1;
-  int _secondDie = 1;
-  int _total = 2;
-  bool _isWin = false;
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
 
-  void _rollDice() {
-    setState(() {
-      _firstDie = _random.nextInt(6) + 1;
-      _secondDie = _random.nextInt(6) + 1;
-      _total = _firstDie + _secondDie;
-      _isWin = _total >= 10;
-    });
+class _LoginPageState extends State<LoginPage> {
+  @override
+  void initState() {
+    super.initState();
+    debugPrint('LoginPage: initState');
   }
 
-  void _resetGame() {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    debugPrint('LoginPage: didChangeDependencies');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    debugPrint('LoginPage: build');
+    return Scaffold(
+      appBar: AppBar(title: const Text('Login')),
+      body: Center(
+        child: FilledButton(
+          onPressed: () {
+            context.goNamed('products', queryParameters: {'user': 'Guest'});
+          },
+          child: const Text('Login'),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void deactivate() {
+    debugPrint('LoginPage: deactivate');
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    debugPrint('LoginPage: dispose');
+    super.dispose();
+  }
+}
+
+class ProductsPage extends StatefulWidget {
+  final String username;
+
+  const ProductsPage({super.key, required this.username});
+
+  @override
+  State<ProductsPage> createState() => _ProductsPageState();
+}
+
+class _ProductsPageState extends State<ProductsPage> {
+  static const List<Map<String, dynamic>> products = [
+    {'name': 'Laptop', 'price': 1200},
+    {'name': 'Phone', 'price': 800},
+    {'name': 'Keyboard', 'price': 95},
+    {'name': 'Headphones', 'price': 150},
+  ];
+
+  int favorites = 0;
+  double screenWidth = 0;
+  String cartMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    debugPrint('ProductsPage: initState');
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final size = MediaQuery.sizeOf(context);
+    screenWidth = size.width;
+    debugPrint(
+      'ProductsPage: didChangeDependencies -> width: ${size.width}, '
+      'height: ${size.height}',
+    );
+  }
+
+  Future<void> openDetails(int index) async {
+    final product = products[index];
+    final name = product['name'] as String;
+    final price = product['price'].toString();
+    final result = await context.pushNamed<Object?>(
+      'details',
+      pathParameters: {'name': name, 'price': price},
+    );
+    if (!mounted || result == null) return;
     setState(() {
-      _firstDie = 1;
-      _secondDie = 1;
-      _total = 2;
-      _isWin = false;
+      cartMessage = result as String;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    debugPrint('ProductsPage: build');
+    final productList = screenWidth < 600
+        ? ProductsListView(
+            products: products,
+            onFavoritePressed: () {
+              setState(() => favorites++);
+            },
+            onProductTap: openDetails,
+          )
+        : ProductsGridView(
+            products: products,
+            onFavoritePressed: () {
+              setState(() => favorites++);
+            },
+            onProductTap: openDetails,
+          );
 
     return Scaffold(
-      appBar: AppBar(
-        leading: const Icon(Icons.casino_outlined),
-        title: const Text('Dice Game'),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Text(
-                'Total: $_total',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      Image.asset(
-                        _isWin ? 'assets/happy.png' : 'assets/sad.png',
-                        width: 240,
-                        height: 190,
-                        fit: BoxFit.contain,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _isWin ? 'You Win' : 'You Lose',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: _isWin
-                                  ? colorScheme.primary
-                                  : colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(child: Dice(value: _firstDie)),
-                  const SizedBox(width: 20),
-                  Expanded(child: Dice(value: _secondDie)),
-                ],
-              ),
-              const SizedBox(height: 22),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _rollDice,
-                      icon: const Icon(Icons.casino_outlined),
-                      label: const Text('Roll Dice'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _resetGame,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Reset'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+      appBar: AppBar(title: const Text('Products')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Welcome, ${widget.username}'),
+            Text('Favorites: $favorites'),
+            Text('Screen width: ${screenWidth.toStringAsFixed(0)}'),
+            if (cartMessage.isNotEmpty) Text(cartMessage),
+            const SizedBox(height: 12),
+            Expanded(child: productList),
+          ],
         ),
       ),
     );
+  }
+
+  @override
+  void deactivate() {
+    debugPrint('ProductsPage: deactivate');
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    debugPrint('ProductsPage: dispose');
+    super.dispose();
+  }
+}
+
+class DetailsPage extends StatefulWidget {
+  final String name;
+  final String price;
+
+  const DetailsPage({super.key, required this.name, required this.price});
+
+  @override
+  State<DetailsPage> createState() => _DetailsPageState();
+}
+
+class _DetailsPageState extends State<DetailsPage> {
+  @override
+  void initState() {
+    super.initState();
+    debugPrint('DetailsPage: initState');
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    debugPrint('DetailsPage: didChangeDependencies');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    debugPrint('DetailsPage: build');
+    return Scaffold(
+      appBar: AppBar(title: const Text('Product Details')),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(widget.name, style: Theme.of(context).textTheme.headlineMedium),
+            Text('Price: \$${widget.price}'),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () {
+                context.pop('${widget.name} added to cart');
+              },
+              child: const Text('Add to Cart'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void deactivate() {
+    debugPrint('DetailsPage: deactivate');
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    debugPrint('DetailsPage: dispose');
+    super.dispose();
   }
 }
